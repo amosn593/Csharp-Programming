@@ -64,6 +64,8 @@ public static class PrefixSum_1
             prefixMap[currentSum]++;
         }
 
+        Console.WriteLine("\nSubarray Sum Equals K:\n");
+
         Console.WriteLine($"Input array: {string.Join(", ", nums)}");
 
         Console.WriteLine($"Number of subarrays that sum to {k} is: {count}");
