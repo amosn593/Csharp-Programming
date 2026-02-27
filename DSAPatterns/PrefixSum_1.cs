@@ -40,4 +40,36 @@ public static class PrefixSum_1
         int subarraySum = prefixSum[right + 1 ] - prefixSum[left ];
         Console.WriteLine($"Sum of subarray from index {left} to {right} is: {subarraySum}");
     }
+
+    public static int SubarraySum(int[] nums, int k)
+    {
+        var count = 0;
+        var currentSum = 0;
+        var prefixMap = new Dictionary<int, int>();
+
+        prefixMap[0] = 1;   // important
+
+        foreach (var num in nums)
+        {
+            currentSum += num;
+
+            if (prefixMap.ContainsKey(currentSum - k))
+            {
+                count += prefixMap[currentSum - k];
+            }
+
+            if (!prefixMap.ContainsKey(currentSum))
+                prefixMap[currentSum] = 0;
+
+            prefixMap[currentSum]++;
+        }
+
+        Console.WriteLine($"Input array: {string.Join(", ", nums)}");
+
+        Console.WriteLine($"Number of subarrays that sum to {k} is: {count}");
+
+        return count;
+
+    }
+
 }
