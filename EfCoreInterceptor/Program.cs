@@ -16,14 +16,14 @@ builder.Services.AddScoped<ICurrentActor, CurrentActor>();
 // Interceptors: usually safe as singleton if they are stateless.
 // Ours depends on scoped ICurrentActor, so we register them as scoped.
 builder.Services.AddScoped<AuditAndSoftDeleteInterceptor>();
-//builder.Services.AddScoped<ObservabilityCommandInterceptor>();
+builder.Services.AddScoped<ObservabilityCommandInterceptor>();
 builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
     // Add interceptors from DI
     options.AddInterceptors(
-    sp.GetRequiredService<AuditAndSoftDeleteInterceptor>()
-    //sp.GetRequiredService<ObservabilityCommandInterceptor>()
+    sp.GetRequiredService<AuditAndSoftDeleteInterceptor>(),
+    sp.GetRequiredService<ObservabilityCommandInterceptor>()
     );
 });
 
@@ -47,11 +47,18 @@ app.MapPost("/invoice", async ([FromBody] Invoice invoice, ApplicationDbContext 
 })
 .WithName("addinvoice");
 
+app.MapGet("/invoices", async (ApplicationDbContext application) =>
+{
+    var invs = await application.Invoices.ToListAsync();
+
+    return Results.Ok(invs);
+});
+
 app.MapGet("/delete{id}", async (Guid id, ApplicationDbContext application) =>
 {
     var inv = await application.Invoices.FindAsync(id);
 
-    application.Invoices.Remove(inv);
+    application.Invoices.Remove(inv!);
 
     await application.SaveChangesAsync();
 

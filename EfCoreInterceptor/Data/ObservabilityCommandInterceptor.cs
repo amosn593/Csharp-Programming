@@ -1,178 +1,120 @@
-﻿//using EfCoreInterceptor.Interfaces;
-//using Microsoft.EntityFrameworkCore.Diagnostics;
-//using System.Collections.Concurrent;
-//using System.Data.Common;
-//using System.Diagnostics;
+﻿using EfCoreInterceptor.Interfaces;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using System.Collections.Concurrent;
+using System.Data.Common;
+using System.Diagnostics;
 
-//namespace EfCoreInterceptor.Data;
+namespace EfCoreInterceptor.Data;
 
-//public sealed class ObservabilityCommandInterceptor : DbCommandInterceptor
-//{
-//    private readonly ICurrentActor _actor;
-//    private readonly ILogger<ObservabilityCommandInterceptor> _logger;
+public sealed class ObservabilityCommandInterceptor : DbCommandInterceptor
+{
+    private readonly ICurrentActor _actor;
+    private readonly ILogger<ObservabilityCommandInterceptor> _logger;
+    private static readonly int _thresholdMs = 1000;
 
-//    private static readonly TimeSpan SlowQueryThreshold = TimeSpan.FromMilliseconds(250);
+   
+    public ObservabilityCommandInterceptor(ICurrentActor actor, 
+        ILogger<ObservabilityCommandInterceptor> logger)
+    {
+        _actor = actor;
+        _logger = logger ;
+     
+    }
 
-//    // Thread-safe store for tracking command execution time
-//    private static readonly ConcurrentDictionary<Guid, Stopwatch> _timers = new();
+   
+    #region Reader
 
-//    public ObservabilityCommandInterceptor(
-//        ICurrentActor actor,
-//        ILogger<ObservabilityCommandInterceptor> logger)
-//    {
-//        _actor = actor;
-//        _logger = logger;
-//    }
+    public override DbDataReader ReaderExecuted(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        DbDataReader result)
+    {
+        LogIfSlow(command, eventData);
+        return base.ReaderExecuted(command, eventData, result);
+    }
 
-//    #region Reader
+    public override async ValueTask<DbDataReader> ReaderExecutedAsync(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        DbDataReader result,
+        CancellationToken cancellationToken = default)
+    {
+        LogIfSlow(command, eventData);
+        return await base.ReaderExecutedAsync(command, eventData, result, cancellationToken);
+    }
 
-//    public override InterceptionResult<DbDataReader> ReaderExecuting(
-//        DbCommand command,
-//        CommandEventData eventData,
-//        InterceptionResult<DbDataReader> result)
-//    {
-//        Tag(command);
-//        StartTimer(eventData.CommandId);
-//        return base.ReaderExecuting(command, eventData, result);
-//    }
+    #endregion
 
-//    public override DbDataReader ReaderExecuted(
-//    DbCommand command,
-//    CommandExecutedEventData eventData,
-//    DbDataReader result)
-//    {
-//        OnExecuted(eventData.CommandId, command, null);
-//        return base.ReaderExecuted(command, eventData, result);
-//    }
+    #region Scalar
 
-//    #endregion
+    public override object? ScalarExecuted(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        object? result)
+    {
+        LogIfSlow(command, eventData);
+        return base.ScalarExecuted(command, eventData, result);
+    }
 
-//    #region NonQuery
+    public override async ValueTask<object?> ScalarExecutedAsync(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        object? result,
+        CancellationToken cancellationToken = default)
+    {
+        LogIfSlow(command, eventData);
+        return await base.ScalarExecutedAsync(command, eventData, result, cancellationToken);
+    }
 
-//    public override InterceptionResult<int> NonQueryExecuting(
-//        DbCommand command,
-//        CommandEventData eventData,
-//        InterceptionResult<int> result)
-//    {
-//        Tag(command);
-//        StartTimer(eventData.CommandId);
-//        return base.NonQueryExecuting(command, eventData, result);
-//    }
+    #endregion
 
-//    public override void NonQueryExecuted(
-//        DbCommand command,
-//        CommandExecutedEventData eventData,
-//        int result)
-//    {
-//        StopAndLog(eventData.CommandId, command);
-//        base.NonQueryExecuted(command, eventData, result);
-//    }
+    #region NonQuery
 
-//    #endregion
+    public override int NonQueryExecuted(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        int result)
+    {
+        LogIfSlow(command, eventData);
+        return base.NonQueryExecuted(command, eventData, result);
+    }
 
-//    #region Scalar
+    public override async ValueTask<int> NonQueryExecutedAsync(
+        DbCommand command,
+        CommandExecutedEventData eventData,
+        int result,
+        CancellationToken cancellationToken = default)
+    {
+        LogIfSlow(command, eventData);
+        return await base.NonQueryExecutedAsync(command, eventData, result, cancellationToken);
+    }
 
-//    public override InterceptionResult<object> ScalarExecuting(
-//        DbCommand command,
-//        CommandEventData eventData,
-//        InterceptionResult<object> result)
-//    {
-//        Tag(command);
-//        StartTimer(eventData.CommandId);
-//        return base.ScalarExecuting(command, eventData, result);
-//    }
+    #endregion
 
-//    public override void ScalarExecuted(
-//        DbCommand command,
-//        CommandExecutedEventData eventData,
-//        object result)
-//    {
-//        StopAndLog(eventData.CommandId, command);
-//        base.ScalarExecuted(command, eventData, result);
-//    }
+    private void LogIfSlow(DbCommand command, CommandExecutedEventData eventData)
+    {
+        var durationMs = eventData.Duration.TotalMilliseconds;
 
-//    #endregion
+        if (durationMs < _thresholdMs)
+            return;
 
-//    #region Failure
+        _logger.LogWarning(
+            "Slow SQL detected ({Duration} ms)\nCommand: {CommandText}\nParameters: {Parameters}",
+            durationMs,
+            command.CommandText,
+            GetParameters(command));
+    }
 
-//    public override void CommandFailed(
-//        DbCommand command,
-//        CommandErrorEventData eventData)
-//    {
-//        _timers.TryRemove(eventData.CommandId, out var sw);
+    private static string GetParameters(DbCommand command)
+    {
+        if (command.Parameters.Count == 0)
+            return "None";
 
-//        sw?.Stop();
+        return string.Join(", ",
+            command.Parameters
+                   .Cast<DbParameter>()
+                   .Select(p => $"{p.ParameterName}={p.Value}"));
+    }
 
-//        _logger.LogError(
-//            eventData.Exception,
-//            "SQL FAILED ({ElapsedMs} ms) tenant:{TenantId} corr:{CorrelationId}\n{CommandText}",
-//            sw?.Elapsed.TotalMilliseconds,
-//            _actor.TenantId,
-//            _actor.CorrelationId,
-//            command.CommandText);
 
-//        base.CommandFailed(command, eventData);
-//    }
-
-//    #endregion
-
-//    #region Helpers
-
-//    private void StartTimer(Guid commandId)
-//    {
-//        _timers.TryAdd(commandId, Stopwatch.StartNew());
-//    }
-
-//    private void StopAndLog(Guid commandId, DbCommand command)
-//    {
-//        if (!_timers.TryRemove(commandId, out var sw))
-//            return;
-
-//        sw.Stop();
-
-//        if (sw.Elapsed < SlowQueryThreshold)
-//            return;
-
-//        _logger.LogWarning(
-//            "Slow SQL ({ElapsedMs} ms) tenant:{TenantId} corr:{CorrelationId}\n{CommandText}\nParams: {@Params}",
-//            sw.Elapsed.TotalMilliseconds,
-//            _actor.TenantId,
-//            _actor.CorrelationId,
-//            command.CommandText,
-//            GetParameters(command));
-//    }
-
-//    private void Tag(DbCommand command)
-//    {
-//        // Prevent duplicate tagging (retries, re-execution)
-//        if (command.CommandText.StartsWith("/* tenant:"))
-//            return;
-
-//        var tenant = _actor.TenantId?.ToString() ?? "none";
-//        var corr = _actor.CorrelationId ?? "none";
-
-//        command.CommandText =
-//            $"/* tenant:{tenant} corr:{corr} */\n{command.CommandText}";
-//    }
-
-//    private static object GetParameters(DbCommand command)
-//    {
-//        if (command.Parameters.Count == 0)
-//            return Array.Empty<object>();
-
-//        var list = new List<object>(command.Parameters.Count);
-
-//        foreach (DbParameter p in command.Parameters)
-//        {
-//            list.Add(new
-//            {
-//                p.ParameterName,
-//                Value = p.Value is DBNull ? null : p.Value
-//            });
-//        }
-
-//        return list;
-//    }
-
-//    #endregion
-//}
+}
