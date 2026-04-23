@@ -91,6 +91,46 @@ public static class TwoPointer_2
         return new int[] { -1, -1, -1 }; // No triplet found
     }
 
+    public static IList<IList<int>> ThreeSum(int[] nums)
+    {
+        var result = new List<IList<int>>();
+        Array.Sort(nums);
+        for (int i = 0; i < nums.Length - 2; i++)
+        {
+            // Skip duplicate values for i
+            if (i > 0 && nums[i] == nums[i - 1])
+            {
+                continue;
+            }
+
+            int left = i + 1;
+            int right = nums.Length - 1;
+            while (left < right)
+            {
+                int sum = nums[i] + nums[left] + nums[right];
+                if (sum == 0)
+                {
+                    result.Add(new List<int> { nums[i], nums[left], nums[right] });
+                    // Skip duplicates for left and right
+                    while (left < right && nums[left] == nums[left + 1]) left++;
+                    while (left < right && nums[right] == nums[right - 1]) right--;
+
+                    left++;
+                    right--;
+                }
+                else if (sum < 0)
+                {
+                    left++;
+                }
+                else
+                {
+                    right--;
+                }
+            }
+        }
+
+        return result;
+    }
 
     public static bool IsPalindrome(string s)
     {
@@ -115,6 +155,71 @@ public static class TwoPointer_2
             right--;
         }
         return true;
+    }
+
+    public static int[] TwoSum(int[] nums, int target)
+    {
+        int left = 0;
+        int right = nums.Length - 1;
+        while (left < right)
+        {
+            int sum = nums[left] + nums[right];
+            if (sum == target)
+            {
+                return new int[] { left, right };
+            }
+            else if (sum < target)
+            {
+                left++;
+            }
+            else
+            {
+                right--;
+            }
+        }
+        return new int[] { -1, -1 }; // No pair found
+    }
+
+    public static int[] MergeSortedArrays(int[] arr1, int[] arr2)
+    {
+        int[] merged = new int[arr1.Length + arr2.Length];
+        int i = 0, j = 0, k = 0;
+        while (i < arr1.Length && j < arr2.Length)
+        {
+            if (arr1[i] < arr2[j])
+            {
+                merged[k++] = arr1[i++];
+            }
+            else
+            {
+                merged[k++] = arr2[j++];
+            }
+        }
+        while (i < arr1.Length)
+        {
+            merged[k++] = arr1[i++];
+        }
+        while (j < arr2.Length)
+        {
+            merged[k++] = arr2[j++];
+        }
+        return merged;
+    }
+
+    public static void ReverseArray(int[] arr)
+    {
+        int left = 0;
+        int right = arr.Length - 1;
+        while (left < right)
+        {
+            // Swap elements at left and right pointers
+            int temp = arr[left];
+            arr[left] = arr[right];
+            arr[right] = temp;
+            // Move pointers towards the center
+            left++;
+            right--;
+        }
     }
 
 }
