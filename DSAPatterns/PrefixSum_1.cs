@@ -19,6 +19,22 @@ public static class PrefixSum_1
             Calculating cumulative totals
      */
 
+    public static void Main()
+    {
+        Console.WriteLine("Prefix Sum Pattern");
+        Template();
+        int[] nums1 = { 1, 1, 1 };
+        int k1 = 2;
+        SubarraySum(nums1, k1);
+        int[] nums2 = { 1, -1, 5, -2, 3 };
+        int k2 = 3;
+        LongestSubarrayWithSumK(nums2, k2);
+        int[] nums3 = { 0, 0, 1, 0, 0 };
+        LongestSubarrayWithEqual0sAnd1s(nums3);
+        int[] nums4 = { 1, 2, 3, 4 };
+        ProductOfSubarrayExceptSelf(nums4);
+    }
+
     public static void Template()
     {
         int[] arr = { 1, 2, 3, 4, 5, 6};
