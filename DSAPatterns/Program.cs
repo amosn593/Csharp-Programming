@@ -7,5 +7,9 @@ Console.WriteLine("20 most important DSA patterns!");
 //PrefixSum_1.Main();
 
 // 2. Two Pointer
+//Console.WriteLine();
+//TwoPointer_2.Main();
+
+// 3. Sliding Window
 Console.WriteLine();
-TwoPointer_2.Main();
+SlidingWindow_3.Main();
