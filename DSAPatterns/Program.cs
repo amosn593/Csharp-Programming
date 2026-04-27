@@ -11,5 +11,9 @@ Console.WriteLine("20 most important DSA patterns!");
 //TwoPointer_2.Main();
 
 // 3. Sliding Window
+//Console.WriteLine();
+//SlidingWindow_3.Main();
+
+// 4. Fast & Slow Pointers
 Console.WriteLine();
-SlidingWindow_3.Main();
+FastSlowPointer_4.Main();
